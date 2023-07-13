@@ -1,0 +1,888 @@
+---
+output:
+  pdf_document:
+header-includes:
+  - \thispagestyle{empty}
+  - \usepackage{tabu}
+  - \usepackage{booktabs}
+---
+
+```{r, echo = FALSE, results = 'hide', message = FALSE, warning = FALSE}
+#Load all the packages 
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(grid)
+library(gridExtra)
+library(jpeg)
+library(ggrepel)
+library(knitr)
+library(quantmod)
+library(coinmarketcapr)
+library(httr)
+library(jsonlite)
+library(scales)
+library(kableExtra)
+library(tinytex)
+```
+
+
+<!-- Data input -->
+
+```{r, echo = FALSE, results = 'hide', message = FALSE, warning = FALSE}
+# Read the Excel file and get sheet names
+excel_file <- params[["excel_file"]]
+sheet_names <- excel_sheets(excel_file)
+
+# Read each sheet into a data frame
+data_list <- lapply(sheet_names, function(sheet) {
+  read_excel(excel_file, sheet = sheet)
+})
+
+# Extract the "investors" sheet and filter by investor ID
+investors <- data_list[[1]]
+investor_id <- params[["ID"]]
+filtered_data <- investors %>%
+  filter(ID == investor_id)
+
+# Access the investor's name
+investor_name <- filtered_data$name
+investor_lastname <- filtered_data$last_name
+
+# Extract the "total_balance" sheet and filter by investor ID
+total_balance <- data_list[[2]]
+
+# Extract the "variable_income" sheet and filter by investor ID
+variable_income <- data_list[[3]]
+
+# Extract the "fixed_income" sheet and filter by investor ID
+fixed_income <- data_list[[4]]
+
+#-----------------------------------------------------------------------------------------------------
+# BTC PRICES
+options("getSymbols.warning4.0" = TRUE)
+options("getSymbols.yahoo.warning" = TRUE)
+getSymbols("BTC-USD",warnings = FALSE, auto.assign = TRUE)
+BTC <- `BTC-USD`
+
+# Get the last price
+BTC_last_close_price <- as.numeric(tail(BTC$`BTC-USD.Close`, 1))
+
+# Get the price 90 days ago
+BTC_price_90_days_ago <- as.numeric(BTC$`BTC-USD.Close`[length(BTC$`BTC-USD.Close`) - 90])
+
+# Calculate the percentage change
+BTC_change <- round((BTC_last_close_price - BTC_price_90_days_ago) / BTC_price_90_days_ago, 4)
+BTC_change <- percent(BTC_change)
+
+#Calculate the BTC returns
+BTC_return = diff(log(BTC$`BTC-USD.Close`))
+BTC_return = BTC_return [-1]
+
+# BNB PRICES
+options("getSymbols.warning4.0" = TRUE)
+options("getSymbols.yahoo.warning" = TRUE)
+getSymbols("BNB-USD",warnings = FALSE, auto.assign = TRUE)
+BNB <- `BNB-USD`
+
+# Get the last price
+BNB_last_close_price <- as.numeric(tail(BNB$`BNB-USD.Close`, 1))
+
+# Get the price 90 days ago
+BNB_price_90_days_ago <- as.numeric(BNB$`BNB-USD.Close`[length(BNB$`BNB-USD.Close`) - 90])
+
+# Calculate the percentage change
+BNB_change <- round((BNB_last_close_price - BNB_price_90_days_ago) / BNB_price_90_days_ago, 4)
+BNB_change <- percent(BNB_change)
+
+#Calculate the BNB returns
+BNB_return = diff(log(BNB$`BNB-USD.Close`))
+BNB_return = BNB_return [-1]
+
+# CHZ PRICES
+options("getSymbols.warning4.0" = TRUE)
+options("getSymbols.yahoo.warning" = TRUE)
+getSymbols("CHZ-USD",warnings = FALSE, auto.assign = TRUE)
+CHZ <- `CHZ-USD`
+
+# Get the last price 
+CHZ_last_close_price <- as.numeric(tail(CHZ$`CHZ-USD.Close`, 1))
+
+# Get the price 90 days ago
+CHZ_price_90_days_ago <- as.numeric(CHZ$`CHZ-USD.Close`[length(CHZ$`CHZ-USD.Close`) - 90])
+
+# Calculate the percentage change
+CHZ_change <- round((CHZ_last_close_price - CHZ_price_90_days_ago) / CHZ_price_90_days_ago, 4)
+CHZ_change <- percent(CHZ_change)
+
+#Calculate the CHZ returns
+CHZ_return = diff(log(CHZ$`CHZ-USD.Close`))
+CHZ_return = CHZ_return [-1]
+
+# ROSE PRICES
+options("getSymbols.warning4.0" = TRUE)
+options("getSymbols.yahoo.warning" = TRUE)
+getSymbols("ROSE-USD",warnings = FALSE, auto.assign = TRUE)
+ROSE <- `ROSE-USD`
+
+# Get the last price 
+ROSE_last_close_price <- as.numeric(tail(ROSE$`ROSE-USD.Close`, 1))
+
+# Get the price 90 days ago
+ROSE_price_90_days_ago <- as.numeric(ROSE$`ROSE-USD.Close`[length(ROSE$`ROSE-USD.Close`) - 90])
+
+# Calculate the percentage change
+ROSE_change <- round((ROSE_last_close_price - ROSE_price_90_days_ago) / ROSE_price_90_days_ago, 4)
+ROSE_change <- percent(ROSE_change)
+
+#Calculate the ROSE returns
+ROSE_return = diff(log(ROSE$`ROSE-USD.Close`))
+ROSE_return = ROSE_return [-1]
+
+# WOO PRICES
+options("getSymbols.warning4.0" = TRUE)
+options("getSymbols.yahoo.warning" = TRUE)
+getSymbols("WOO-USD",warnings = FALSE, auto.assign = TRUE)
+WOO <- `WOO-USD`
+
+# Get the last price 
+WOO_last_close_price <- as.numeric(tail(`WOO-USD`$`WOO-USD.Close`, 1))
+
+# Get the price 90 days ago
+WOO_price_90_days_ago <- as.numeric(`WOO-USD`$`WOO-USD.Close`[length(`WOO-USD`$`WOO-USD.Close`) - 90])
+
+# Calculate the percentage change
+WOO_change <- round((WOO_last_close_price - WOO_price_90_days_ago) / WOO_price_90_days_ago, 4)
+WOO_change <- percent(WOO_change)
+
+#Calculate the WOO returns
+WOO_return = diff(log(WOO$`WOO-USD.Close`))
+WOO_return = WOO_return [-1]
+
+# CRO PRICES
+options("getSymbols.warning4.0" = TRUE)
+options("getSymbols.yahoo.warning" = TRUE)
+getSymbols("CRO-USD",warnings = FALSE, auto.assign = TRUE)
+CRO <- `CRO-USD`
+
+# Get the last price 
+CRO_last_close_price <- as.numeric(tail(`CRO-USD`$`CRO-USD.Close`, 1))
+
+# Get the price 90 days ago
+CRO_price_90_days_ago <- as.numeric(`CRO-USD`$`CRO-USD.Close`[length(`CRO-USD`$`CRO-USD.Close`) - 90])
+
+# Calculate the percentage change
+CRO_change <- round((CRO_last_close_price - CRO_price_90_days_ago) / CRO_price_90_days_ago, 4)
+CRO_change <- percent(CRO_change)
+
+#Calculate the CRO returns
+CRO_return = diff(log(CRO$`CRO-USD.Close`))
+CRO_return = CRO_return [-1]
+
+# AITECH PRICES
+AITECH <- 0.020865
+
+# Calculate the percentage change
+AITECH_change <- percent(0)
+
+#Calculate the AITECH returns
+AITECH_return <- 0
+
+# Read the CSV file
+LUNA <- read.csv("C:/Users/pepec/Desktop/estudios/master/Report_Generator/Inst/LUNA_price.csv")
+
+# Get the last price 
+LUNA_last_close_price <- tail(LUNA$close, 1)
+
+# Get the price 90 days ago
+LUNA_price_90_days_ago <- LUNA$close[length(LUNA$close) - 90]
+
+# Calculate the percentage change
+LUNA_change <- round((LUNA_last_close_price - LUNA_price_90_days_ago) / LUNA_price_90_days_ago, 4)
+LUNA_change <- percent(LUNA_change)
+
+#Calculate the LUNA returns
+LUNA_return = diff(log(LUNA$close))
+LUNA_return = LUNA_return [-1]
+
+# AITECH PRICES
+USD <- 1
+
+# Calculate the percentage change
+USD_change <- percent(0)
+
+#Calculate the USD returns
+USD_return <- 0
+
+# AITECH PRICES
+USD_ICO <- 1
+
+# Calculate the percentage change
+USD_ICO_change <- percent(0)
+
+#Calculate the USD_ICO returns
+USD_ICO_return <- 0
+
+# Create the prices data frame
+prices <- data.frame(
+  Asset = c("Bitcoin", "Binance Coin", "Chiliz", "Oasis Network", "WOO Network", "Cronos", "Solidus Ai Tech", "Terra", "Digital Dolar", "ICO Digital Dolar"),
+  Ticker_Symbol = c("BTC", "BNB", "CHZ", "ROSE", "WOO", "CRO", "AITECH", "LUNA", "USD", "USD_ICO"),
+  Value = NA
+)
+
+# Create a data frame for the changes
+changes <- data.frame(
+  Asset = c("Bitcoin", "Binance Coin", "Chiliz", "Oasis Network", "WOO Network", "Cronos", "Solidus Ai Tech", "Terra", "Digital Dolar", "ICO Digital Dolar"),
+  Ticker_Symbol = c("BTC", "BNB", "CHZ", "ROSE", "WOO", "CRO", "AITECH", "LUNA", "USD", "USD_ICO"),
+  Change_3months = c(BTC_change, BNB_change, CHZ_change, ROSE_change, WOO_change, CRO_change, AITECH_change, LUNA_change, USD_change, USD_ICO_change)
+)
+
+# Assign the most recent price for each asset
+prices$Value[prices$Asset == "Bitcoin"] <- as.numeric(format(tail(BTC, 1), digits = 3, scientific = FALSE))
+prices$Value[prices$Asset == "Binance Coin"] <- as.numeric(format(tail(BNB, 1), digits = 3, scientific = FALSE))
+prices$Value[prices$Asset == "Chiliz"] <- as.numeric(format(tail(CHZ, 1), digits = 3, scientific = FALSE))
+prices$Value[prices$Asset == "Oasis Network"] <- as.numeric(format(tail(`ROSE-USD`, 1), digits = 3, scientific = FALSE))
+prices$Value[prices$Asset == "WOO Network"] <- as.numeric(format(tail(`WOO-USD`, 1), digits = 3, scientific = FALSE))
+prices$Value[prices$Asset == "Cronos"] <- as.numeric(format(tail(`CRO-USD`, 1), digits = 3, scientific = FALSE))
+prices$Value[prices$Asset == "Solidus Ai Tech"] <- as.numeric(format(tail(AITECH, 1), digits = 3, scientific = FALSE))
+prices$Value[prices$Asset == "Terra"] <- as.numeric(format(tail(LUNA, 1), digits = 3, scientific = FALSE))
+prices$Value[prices$Asset == "Digital Dolar"] <- USD
+prices$Value[prices$Asset == "ICO Digital Dolar"] <- USD_ICO
+```
+
+
+
+<!-- Cover Page ------------------------------------------------------------------------------------------------------------>
+
+\pagenumbering{arabic}
+
+\begin{center}
+
+\textcolor[HTML]{C7A61F}{\rule{0.5\linewidth}{2pt}}
+
+\vspace{4cm}
+
+\includegraphics[width=6cm]{C:/Users/pepec/Desktop/estudios/master/Report_Generator/Inst/logo.jpg}
+
+\vspace{2.5cm}
+
+\fontsize{28}{28}\selectfont
+\textbf{Monthly Investment Report}
+
+\vspace{2cm}
+
+\fontsize{24}{24}\selectfont
+\textbf{`r investor_name` `r investor_lastname`}
+
+\fontsize{24}{24}\selectfont
+\textbf{`r params$ID`}
+
+\vspace{2.5cm}
+
+\fontsize{18}{18}\selectfont
+Prepared by: José Ramón Cobos
+
+\fontsize{18}{18}\selectfont
+`r format(Sys.time(), '%d, %B, %Y')`
+
+\vspace{2.5cm}
+
+\textcolor[HTML]{C7A61F}{\rule{0.5\linewidth}{2pt}}
+
+\end{center}
+
+
+
+<!-- Executive Summary ----------------------------------------------------------------------------------------------->
+
+\newpage
+
+\begin{minipage}[t][0pt]{\textwidth}
+    \vspace{-2 cm}\hspace{-2 cm}
+    \includegraphics[width = 3.5cm]{C:/Users/pepec/Desktop/estudios/master/Report_Generator/Inst/logo.jpg}
+\end{minipage}
+
+\fontsize{20}{18}\selectfont
+\textbf{1. Executive Summary}
+
+\vspace{0.2cm}
+
+\fontsize{14}{16}\selectfont
+Z Financial Growth is pleased to present the executive summary for the monthly investment report. This report provides an overview of the investment performance and activities for the month of `r params$month`, `r params$year`.
+
+\vspace{0.6cm}
+
+\fontsize{17}{12}\selectfont
+\textbf{Investment Summary}
+
+\vspace{0.2cm}
+
+\fontsize{14}{14}\selectfont
+\textbf{Introduction:}
+
+\fontsize{14}{16}\selectfont
+In `r params$month` `r params$year`, Z Financial Growth continued to manage client capital, focusing on cryptocurrency investments. With a firm commitment to long-term prospects, we prioritize projects that build stable and profitable ecosystems, rather than fixating on short-term price fluctuations.
+
+\vspace{0.3cm}
+
+\fontsize{14}{14}\selectfont
+\textbf{Investment philosophy:}
+
+\fontsize{14}{16}\selectfont
+Our philosophy revolves around supporting blockchain-based companies with strong fundamentals, innovative technology and profitable ecosystems. We prioritize projects that bring tangible value to users and stakeholders, relying less on market sentiment.
+
+\vspace{0.3cm}
+
+\fontsize{14}{14}\selectfont
+\textbf{Thorough analysis:}
+
+\fontsize{14}{16}\selectfont
+Each investment decision undergoes thorough analysis, assessing long-term prospects and the potential for transformative solutions. Our due diligence takes into account factors such as technology, market demand and adaptability to shape competitive sectors.
+
+\vspace{0.3cm}
+
+\fontsize{14}{14}\selectfont
+\textbf{Commitment to the future:}
+
+\fontsize{14}{16}\selectfont
+Going forward, we remain dedicated to our investment philosophy, emphasizing patient and prudent investments in projects that shape the future of blockchain technology. Our goal is to drive lasting value for clients while fostering industry advancements.
+
+\vspace{0.3cm}
+
+\fontsize{14}{14}\selectfont
+\textbf{Conclusion:}
+
+\fontsize{14}{16}\selectfont
+Z Financial Growth's approach to cryptocurrency capital management focuses on long-term growth. We prioritize projects with strong fundamentals, innovative technology and the potential for profitable ecosystems. Through thorough analysis and unwavering commitment, we shape the future of blockchain technology, ensuring the success of our clients' financial endeavors.
+
+\newpage
+
+\begin{minipage}[t][0pt]{\textwidth}
+    \vspace{-2 cm}\hspace{-2 cm}
+    \includegraphics[width = 3.5cm]{C:/Users/pepec/Desktop/estudios/master/Report_Generator/Inst/logo.jpg}
+\end{minipage}
+
+\fontsize{17}{12}\selectfont
+\textbf{Portfolio Holdings}
+
+\vspace{0.2cm}
+
+\fontsize{14}{16}\selectfont
+Z Financial Growth maintained a diversified portfolio across various cryptocurrencies to ensure risk management and capture potential growth opportunities. The portfolio holdings for `r params$month`, `r params$year` included:
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE, fig.keep = 'all', fig.width = 5}
+#Dreate the quantity data frame
+quantity <- total_balance %>%
+    filter(ID == investor_id) %>%
+    select(matches(prices$Ticker_Symbol))
+
+quantity_organized <- quantity %>%
+  pivot_longer(everything(), names_to = "Asset", values_to = "Quantity") %>%
+  select(Asset, Quantity)%>%
+  mutate(Asset = gsub("\\$", "", Asset),
+         Quantity = round(Quantity, 2))
+
+# Create the per_asset data frame
+per_asset <- data.frame(
+  Asset = prices$Asset,
+  Ticker_Symbol = prices$Ticker_Symbol,
+  Market_value = ifelse(prices$Value < 1, round(prices$Value, 3), round(prices$Value, 0))
+)
+
+# Merge per_asset and quantity_organized by Ticker_Symbol and Asset
+per_asset <- merge(per_asset, quantity_organized, by.x = "Ticker_Symbol", by.y = "Asset")
+
+# Merge per_asset and quantity_organized by Ticker_Symbol and Asset
+per_asset <- merge(per_asset, select(changes, Ticker_Symbol, Change_3months), by = "Ticker_Symbol")
+
+#create total value
+per_asset$Total_Value <- round(per_asset$Market_value * per_asset$Quantity, 2)
+
+# Rearrange the columns
+per_asset <- per_asset[, c("Asset", "Ticker_Symbol", "Market_value", "Quantity", "Total_Value", "Change_3months")]
+
+#Filtering the top 4 assets
+top4_assets <- per_asset %>%
+  arrange(desc(Total_Value)) %>%
+  head(4) %>%
+  mutate(Allocation = Total_Value / sum(Total_Value))
+
+# Calculate the total value of top 4 assets
+top4_total_value <- sum(top4_assets$Total_value)
+
+# Create the others data frame
+others <- per_asset %>%
+  filter(!(Asset %in% top4_assets$Asset)) %>%
+  summarise(
+    Asset = "Others",
+    Ticker_Symbol = "Others",
+    Market_value = NA,
+    Quantity = NA,
+    Total_Value = sum(Total_Value) - top4_total_value,
+    Change_3months = NA,
+  ) %>%
+  mutate(Allocation = Total_Value / sum(per_asset$Total_Value - top4_total_value))
+
+#Joining the top4_assets and the others assets
+portfolio_holdings <- bind_rows(top4_assets, others)
+
+# Extract unique Asset values from top4_assets and add "Others" separately
+top4_asset_levels <- top4_assets$Asset
+asset_levels <- c(top4_assets$Asset, "Others")
+
+# Convert Asset column to factor with desired order
+portfolio_holdings$Asset <- factor(portfolio_holdings$Asset, levels = asset_levels)
+
+# Plot the pie chart
+positions <- portfolio_holdings %>% 
+  mutate(csum = rev(cumsum(rev(Allocation))), 
+         pos = Allocation/2 + lead(csum, 1),
+         pos = if_else(is.na(pos), Allocation/2, pos))
+
+pie_chart <- ggplot(portfolio_holdings, aes(x = "", y = Allocation, fill = Asset)) +
+  geom_bar(stat = "identity", width = 1, color = "white") +
+  coord_polar("y", start = 0) +
+  labs(fill = "Asset", x = NULL, y = NULL) +
+  theme_void() +
+  geom_label_repel(data = positions,
+                   aes(y = pos, label = paste0(round(Allocation * 100), "%")),
+                   size = 4, nudge_x = 0.3, show.legend = FALSE)
+
+pie_chart
+```
+
+\fontsize{14}{16}\selectfont
+The portfolio holdings were prudently allocated based on thorough analysis of each cryptocurrency's potential for growth and risk.
+
+
+<!-- Investment Overview ------------------------------------------------------------------------------->
+
+\newpage
+
+\begin{minipage}[t][0pt]{\textwidth}
+    \vspace{-2 cm}\hspace{-2 cm}
+    \includegraphics[width = 3.5cm]{C:/Users/pepec/Desktop/estudios/master/Report_Generator/Inst/logo.jpg}
+\end{minipage}
+
+\fontsize{20}{18}\selectfont
+\textbf{2. Investment Overview}
+
+\vspace{0.75cm}
+
+\fontsize{17}{12}\selectfont
+\textbf{Portfolio Summary}
+
+
+<!-- Performing some calculations and showing general information about the portfolio -->
+```{r, echo = FALSE, message = FALSE, warning = FALSE, fig.keep = 'all'}
+# Calculations
+initial_investment <- round(investors$Quantity[investors$ID == investor_id], 2)
+present_value <- round(total_balance$`Total $`[total_balance$ID == investor_id], 2)
+withdrawals <- round(investors$Withdrawals[investors$ID == investor_id], 2)
+result <- present_value + withdrawals - initial_investment
+
+# Text part on the left
+text_output <- paste(
+  "Initial investment: ", format(initial_investment, big.mark = "."), "$\n",
+  "Withdrawals: ", format(withdrawals, big.mark = "."), "$\n",
+  "Present Value: ", format(present_value, big.mark = "."), "$\n",
+  "Result: ", format(result, big.mark = "."), "$\n"
+)
+
+# Create the data frame
+data_plot_1 <- data.frame(
+  Label = factor(c("Initial Investment", "Withdrawals", "Present Value", "Result"),
+                 levels = c("Initial Investment", "Withdrawals", "Present Value", "Result")),
+  Value = c(initial_investment, withdrawals, present_value, result)
+)
+
+# Create the bar plot using ggplot
+plot_output <- ggplot(data_plot_1, aes(x = Label, y = Value)) +
+  geom_bar(stat = "identity", fill = "steelblue", width = 0.8, color = "black") +
+  theme_minimal() +
+  theme(
+    axis.title = element_blank(),
+    panel.grid.major = element_blank(),
+    plot.title = element_text(hjust = 0.5),
+    axis.text.x = element_text(angle = 30, hjust = 1)
+)
+```
+
+```{r, echo = FALSE, results = 'hide', message = FALSE, fig.keep = 'all', fig.width = 6, fig.height = 3.5}
+# Combine the text and plot outputs using grid.arrange
+grid_output <- grid.arrange(textGrob(text_output), plot_output, ncol = 2)
+
+# Print the grid output
+print(grid_output)
+```
+
+\vspace{1.5cm}
+
+\fontsize{17}{12}\selectfont
+\textbf{Overviw Per Asset}
+
+\vspace{1cm}
+
+```{r, echo = FALSE, results = 'asis', warning = FALSE, message = FALSE}
+#Creating the table data frame
+top4_table <- top4_assets
+top4_table$Total_Value <- paste0(top4_table$Total_Value, " $")
+top4_table$Allocation <- percent(top4_table$Allocation)
+top4_table$Market_value <- ifelse(top4_table$Market_value >= 1, round(top4_table$Market_value, 0), round(top4_table$Market_value, 3))
+top4_table$Quantity <- ifelse(top4_table$Quantity >= 100, round(top4_table$Quantity, 0), round(top4_table$Quantity, 3))
+
+# Generate the table
+kbl(top4_table,
+    booktabs = TRUE,
+    col.names = c("Asset", "Symbol", "Market Value", "Quantity", "Total Value", "3M Change", "Allocation"),
+    align = "ccc") %>%
+  kable_styling(full_width = TRUE,
+                font_size = 9) %>%
+  row_spec(0, bold = TRUE)
+```
+
+\newpage
+
+```{r, echo = FALSE, results = "hide", message = FALSE, warning = FALSE}
+#mean of the return per asset: 
+BTC_mean_return <- mean(BTC_return, na.rm = TRUE)
+BNB_mean_return <- mean(BNB_return, na.rm = TRUE)
+CHZ_mean_return <- mean(CHZ_return, na.rm = TRUE)
+ROSE_mean_return <- mean(ROSE_return, na.rm = TRUE)
+WOO_mean_return <- mean(WOO_return, na.rm = TRUE)
+CRO_mean_return <- mean(CRO_return, na.rm = TRUE)
+AITECH_mean_return <- mean(AITECH_return, na.rm = TRUE)
+LUNA_mean_return <- mean(LUNA_return, na.rm = TRUE)
+USD_mean_return <- mean(USD_return, na.rm = TRUE)
+USD_ICO_mean_return <- mean(USD_ICO_return, na.rm = TRUE)
+
+#Creatingn a data frame for the mean returns
+mean_returns <- data.frame(
+  Asset = c("Bitcoin", "Binance Coin", "Chiliz", "Oasis Network", "WOO Network", "Cronos", "Solidus Ai Tech", "Terra", "Digital Dolar", "ICO Digital Dolar"),
+  Ticker_Symbol = c("BTC", "BNB", "CHZ", "ROSE", "WOO", "CRO", "AITECH", "LUNA", "USD", "USD_ICO"),
+  mean_return = c(BTC_mean_return, BNB_mean_return, CHZ_mean_return, ROSE_mean_return, WOO_mean_return, CRO_mean_return, AITECH_mean_return, LUNA_mean_return, USD_mean_return, USD_ICO_mean_return)
+)
+
+# Standart deviation 
+BTC_sd <- sd(BTC_return, na.rm = TRUE) 
+BNB_sd <- sd(BNB_return, na.rm = TRUE) 
+CHZ_sd <- sd(CHZ_return, na.rm = TRUE) 
+ROSE_sd <- sd(ROSE_return, na.rm = TRUE) 
+WOO_sd <- sd(WOO_return, na.rm = TRUE) 
+CRO_sd <- sd(CRO_return, na.rm = TRUE) 
+AITECH_sd <- sd(AITECH_return, na.rm = TRUE) 
+LUNA_sd <- sd(LUNA_return, na.rm = TRUE) 
+USD_sd <- sd(USD_return, na.rm = TRUE) 
+USD_sd <- sd(USD_ICO_return, na.rm = TRUE) 
+
+#Creatingn a data frame for the sd
+sd_df <- data.frame(
+  Asset = c("Bitcoin", "Binance Coin", "Chiliz", "Oasis Network", "WOO Network", "Cronos", "Solidus Ai Tech", "Terra", "Digital Dolar", "ICO Digital Dolar"),
+  Ticker_Symbol = c("BTC", "BNB", "CHZ", "ROSE", "WOO", "CRO", "AITECH", "LUNA", "USD", "USD_ICO"),
+  standard_deviation = c(BTC_sd, BNB_sd, CHZ_sd, ROSE_sd, WOO_sd, CRO_sd, AITECH_sd, LUNA_sd, USD_sd, USD_sd)
+)
+
+# Percentiles
+tauseq = seq(0,1,.1) # generate sequence of numbers that will be used as quantiles
+
+BTC_percentiles <- quantile(BTC_return, tauseq, na.rm = TRUE)
+BNB_percentiles <- quantile(BNB_return, tauseq, na.rm = TRUE)
+CHZ_percentiles <- quantile(CHZ_return, tauseq, na.rm = TRUE)
+ROSE_percentiles <- quantile(ROSE_return, tauseq, na.rm = TRUE)
+WOO_percentiles <- quantile(WOO_return, tauseq, na.rm = TRUE)
+CRO_percentiles <- quantile(CRO_return, tauseq, na.rm = TRUE)
+AITECH_percentiles <- quantile(AITECH_return, tauseq, na.rm = TRUE)
+LUNA_percentiles <- quantile(LUNA_return, tauseq, na.rm = TRUE)
+USD_percentiles <- quantile(USD_return, tauseq, na.rm = TRUE)
+USD_ICO_percentiles <- quantile(USD_ICO_return, tauseq, na.rm = TRUE)
+
+# estimate kernel density & plot the estimated density 
+BTC_density = density(BTC_return, na.rm = TRUE) 
+BNB_density = density(BNB_return, na.rm = TRUE) 
+CHZ_density = density(CHZ_return, na.rm = TRUE) 
+ROSE_density = density(ROSE_return, na.rm = TRUE) 
+WOO_density = density(WOO_return, na.rm = TRUE) 
+CRO_density = density(CRO_return, na.rm = TRUE) 
+LUNA_density = density(LUNA_return, na.rm = TRUE) 
+
+#Calculations only for the first asset of the top4_assets
+first_asset <- top4_assets[1,1]
+
+first_mean <- paste0(round(mean_returns[mean_returns$Asset == first_asset, 3] * 100, 2), " %")
+first_sd <- paste0(round(sd_df[sd_df$Asset == first_asset, 3] * 100, 2), " %")
+
+first_asset_return <- switch(first_asset,
+                             "Bitcoin" = BTC_return,
+                             "Binance Coin" = BNB_return,
+                             "Chiliz" = CHZ_return,
+                             "Oasis Network" = ROSE_return,
+                             "WOO Network" = WOO_return,
+                             "Cronos" = CRO_return,
+                             "Solidus Ai Tech" = AITECH_return,
+                             "Terra" = LUNA_return,
+                             "Digital Dolar" = USD_return,
+                             "ICO Digital Dolar" = USD_ICO_return)
+
+first_asset_quantiles_df <- data.frame(
+  Deciles = c(0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100),
+  Return = paste0(round(quantile(first_asset_return, tauseq, na.rm = TRUE) * 100, 2), " %")
+)
+
+first_asset_quantiles_table <- kbl(first_asset_quantiles_df,
+                                   booktabs = TRUE,
+                                   col.names = c("Deciles", "Return"),
+                                   align = "ccc") %>%
+  kable_styling(full_width = TRUE,
+                font_size = 10) %>%
+  row_spec(0, bold = TRUE)
+
+if (first_asset %in% c("Bitcoin", "Binance Coin", "Chiliz", "Oasis Network", "WOO Network", "Cronos", "Terra")) {
+  first_asset_density <- density(first_asset_return, na.rm = TRUE)
+} else {
+  first_asset_density <- NULL
+}
+
+#Calculations only for the second asset of the top4_assets
+second_asset <- top4_assets[2,1]
+
+second_mean <- paste0(round(mean_returns[mean_returns$Asset == second_asset, 3] * 100, 2), " %")
+second_sd <- paste0(round(sd_df[sd_df$Asset == second_asset, 3] * 100, 2), " %")
+
+second_asset_return <- switch(second_asset,
+                             "Bitcoin" = BTC_return,
+                             "Binance Coin" = BNB_return,
+                             "Chiliz" = CHZ_return,
+                             "Oasis Network" = ROSE_return,
+                             "WOO Network" = WOO_return,
+                             "Cronos" = CRO_return,
+                             "Solidus Ai Tech" = AITECH_return,
+                             "Terra" = LUNA_return,
+                             "Digital Dolar" = USD_return,
+                             "ICO Digital Dolar" = USD_ICO_return)
+
+second_asset_quantiles_df <- data.frame(
+  Deciles = c(0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100),
+  Return = paste0(round(quantile(second_asset_return, tauseq, na.rm = TRUE) * 100, 2), " %")
+)
+
+second_asset_quantiles_table <- kbl(second_asset_quantiles_df,
+                                   booktabs = TRUE,
+                                   col.names = c("Deciles", "Return"),
+                                   align = "ccc") %>%
+  kable_styling(full_width = TRUE,
+                font_size = 10) %>%
+  row_spec(0, bold = TRUE)
+
+if (second_asset %in% c("Bitcoin", "Binance Coin", "Chiliz", "Oasis Network", "WOO Network", "Cronos", "Terra")) {
+  second_asset_density <- density(second_asset_return, na.rm = TRUE)
+} else {
+  second_asset_density <- NULL
+}
+
+#Calculations only for the third asset of the top4_assets
+third_asset <- top4_assets[3,1]
+
+third_mean <- paste0(round(mean_returns[mean_returns$Asset == third_asset, 3] * 100, 2), " %")
+third_sd <- paste0(round(sd_df[sd_df$Asset == third_asset, 3] * 100, 2), " %")
+
+third_asset_return <- switch(third_asset,
+                             "Bitcoin" = BTC_return,
+                             "Binance Coin" = BNB_return,
+                             "Chiliz" = CHZ_return,
+                             "Oasis Network" = ROSE_return,
+                             "WOO Network" = WOO_return,
+                             "Cronos" = CRO_return,
+                             "Solidus Ai Tech" = AITECH_return,
+                             "Terra" = LUNA_return,
+                             "Digital Dolar" = USD_return,
+                             "ICO Digital Dolar" = USD_ICO_return)
+
+third_asset_quantiles_df <- data.frame(
+  Deciles = c(0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100),
+  Return = paste0(round(quantile(third_asset_return, tauseq, na.rm = TRUE) * 100, 2), " %")
+)
+
+third_asset_quantiles_table <- kbl(third_asset_quantiles_df,
+                                   booktabs = TRUE,
+                                   col.names = c("Deciles", "Return"),
+                                   align = "ccc") %>%
+  kable_styling(full_width = TRUE,
+                font_size = 10) %>%
+  row_spec(0, bold = TRUE)
+
+if (third_asset %in% c("Bitcoin", "Binance Coin", "Chiliz", "Oasis Network", "WOO Network", "Cronos", "Terra")) {
+  third_asset_density <- density(third_asset_return, na.rm = TRUE)
+} else {
+  third_asset_density <- NULL
+}
+
+#Calculations only for the fourth asset of the top4_assets
+fourth_asset <- top4_assets[4,1]
+
+fourth_mean <- paste0(round(mean_returns[mean_returns$Asset == fourth_asset, 3] * 100, 2), " %")
+fourth_sd <- paste0(round(sd_df[sd_df$Asset == fourth_asset, 3] * 100, 2), " %")
+
+fourth_asset_return <- switch(fourth_asset,
+                             "Bitcoin" = BTC_return,
+                             "Binance Coin" = BNB_return,
+                             "Chiliz" = CHZ_return,
+                             "Oasis Network" = ROSE_return,
+                             "WOO Network" = WOO_return,
+                             "Cronos" = CRO_return,
+                             "Solidus Ai Tech" = AITECH_return,
+                             "Terra" = LUNA_return,
+                             "Digital Dolar" = USD_return,
+                             "ICO Digital Dolar" = USD_ICO_return)
+
+fourth_asset_quantiles_df <- data.frame(
+  Deciles = c(0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100),
+  Return = paste0(round(quantile(fourth_asset_return, tauseq, na.rm = TRUE) * 100, 2), " %")
+)
+
+fourth_asset_quantiles_table <- kbl(fourth_asset_quantiles_df,
+                                   booktabs = TRUE,
+                                   col.names = c("Deciles", "Return"),
+                                   align = "ccc") %>%
+  kable_styling(full_width = TRUE,
+                font_size = 10) %>%
+  row_spec(0, bold = TRUE)
+
+if (fourth_asset %in% c("Bitcoin", "Binance Coin", "Chiliz", "Oasis Network", "WOO Network", "Cronos", "Terra")) {
+  fourth_asset_density <- density(fourth_asset_return, na.rm = TRUE)
+} else {
+  fourth_asset_density <- NULL
+}
+
+```
+
+\begin{minipage}[t][0pt]{\textwidth}
+    \vspace{-2 cm}\hspace{-2 cm}
+    \includegraphics[width = 3.5cm]{C:/Users/pepec/Desktop/estudios/master/Report_Generator/Inst/logo.jpg}
+\end{minipage}
+
+\fontsize{17}{12}\selectfont
+\textbf{Investment Per Asset - Detailed Historical Data}
+
+\vspace{0.75cm}
+
+\fontsize{15}{12}\selectfont
+\textbf{`r first_asset`}
+
+\vspace{0.5cm}
+
+\fontsize{14}{16}\selectfont
+\textbf{Average Return:}  `r first_mean`
+
+\textbf{Variation:}  `r first_sd`
+
+\textbf{Deciles:}
+
+`r first_asset_quantiles_table`
+
+\textbf{Density:}
+
+```{r, echo = FALSE, results = "hide", message = FALSE, warning = FALSE, fig.width = 7, fig.height = 4, fig.align = "center"}
+if (first_asset %in% c("Bitcoin", "Binance Coin", "Chiliz", "Oasis Network", "WOO Network", "Cronos", "Terra")) {
+  plot(first_asset_density, main = "", xlab = "")
+} else {
+  first_asset_density <- NULL
+}
+```
+
+\newpage
+
+\begin{minipage}[t][0pt]{\textwidth}
+    \vspace{-2 cm}\hspace{-2 cm}
+    \includegraphics[width = 3.5cm]{C:/Users/pepec/Desktop/estudios/master/Report_Generator/Inst/logo.jpg}
+\end{minipage}
+
+\fontsize{15}{12}\selectfont
+\textbf{`r second_asset`}
+
+\vspace{0.5cm}
+
+\fontsize{14}{16}\selectfont
+\textbf{Average Return:}  `r second_mean`
+
+\textbf{Variation:}  `r second_sd`
+
+\textbf{Deciles:}
+
+`r second_asset_quantiles_table`
+
+\textbf{Density:}
+
+```{r, echo = FALSE, results = "hide", message = FALSE, warning = FALSE, fig.width = 7, fig.height = 4, fig.align = "center"}
+if (second_asset %in% c("Bitcoin", "Binance Coin", "Chiliz", "Oasis Network", "WOO Network", "Cronos", "Terra")) {
+  plot(second_asset_density, main = "", xlab = "")
+} else {
+  second_asset_density <- NULL
+}
+```
+
+\newpage
+
+\begin{minipage}[t][0pt]{\textwidth}
+    \vspace{-2 cm}\hspace{-2 cm}
+    \includegraphics[width = 3.5cm]{C:/Users/pepec/Desktop/estudios/master/Report_Generator/Inst/logo.jpg}
+\end{minipage}
+
+\fontsize{15}{12}\selectfont
+\textbf{`r third_asset`}
+
+\vspace{0.5cm}
+
+\fontsize{14}{16}\selectfont
+\textbf{Average Return:}  `r third_mean`
+
+\textbf{Variation:}  `r third_sd`
+
+\textbf{Deciles:}
+
+`r third_asset_quantiles_table`
+
+\textbf{Density:}
+
+```{r, echo = FALSE, results = "hide", message = FALSE, warning = FALSE, fig.width = 7, fig.height = 4, fig.align = "center"}
+if (third_asset %in% c("Bitcoin", "Binance Coin", "Chiliz", "Oasis Network", "WOO Network", "Cronos", "Terra")) {
+  plot(third_asset_density, main = "", xlab = "")
+} else {
+  third_asset_density <- NULL
+}
+```
+
+\newpage
+
+\begin{minipage}[t][0pt]{\textwidth}
+    \vspace{-2 cm}\hspace{-2 cm}
+    \includegraphics[width = 3.5cm]{C:/Users/pepec/Desktop/estudios/master/Report_Generator/Inst/logo.jpg}
+\end{minipage}
+
+\fontsize{15}{12}\selectfont
+\textbf{`r fourth_asset`}
+
+\vspace{0.5cm}
+
+\fontsize{14}{16}\selectfont
+\textbf{Average Return:}  `r fourth_mean`
+
+\textbf{Variation:}  `r fourth_sd`
+
+\textbf{Deciles:}
+
+`r fourth_asset_quantiles_table`
+
+\textbf{Density:}
+
+```{r, echo = FALSE, results = "hide", message = FALSE, warning = FALSE, fig.width = 7, fig.height = 4, fig.align = "center"}
+if (fourth_asset %in% c("Bitcoin", "Binance Coin", "Chiliz", "Oasis Network", "WOO Network", "Cronos", "Terra")) {
+  plot(fourth_asset_density, main = "", xlab = "")
+} else {
+  fourth_asset_density <- NULL
+}
+```
+
+
+
+
